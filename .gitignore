@@ -1,0 +1,12 @@
+node_modules
+.env
+data/movies.json
+data/cache
+
+# copied in by scripts/copy-assets.js
+public/catalog.js
+public/matter.js
+
+.wrangler
+.dev.vars
+.DS_Store

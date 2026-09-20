@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "movie-finder",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // A custom domain, not a plain DNS record. Workers dispatch on hostname, so
+  // a CNAME to workers.dev never reaches this script. Cloudflare owns the DNS
+  // record for anything listed here.
+  "routes": [
+    { "pattern": "movie-finder.seanockert.com", "custom_domain": true }
+  ],
+  "workers_dev": true,
+
+  // public/ is served straight from the edge. `not_found_handling: none` is
+  // load bearing: assets are matched before the Worker runs, and any other
+  // setting would answer /api/* with index.html.
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "none"
+  },
+
+  "observability": { "enabled": true }
+}

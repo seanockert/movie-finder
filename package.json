@@ -1,0 +1,24 @@
+{
+  "name": "movie-rec",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build-data": "node --env-file=.env scripts/build-data.js",
+    "copy-assets": "node scripts/copy-assets.js",
+    "dev": "node --env-file=.env server.js",
+    "dev-worker": "npm run copy-assets && wrangler dev",
+    "predeploy": "npm run copy-assets",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "test-query": "node --env-file=.env test-query.js",
+    "test-filters": "node test-filters.js"
+  },
+  "dependencies": {
+    "@typesafe-ai/sdk": "^0.6.0",
+    "matter-js": "^0.20.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.135.0"
+  }
+}

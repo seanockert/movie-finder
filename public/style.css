@@ -1,0 +1,236 @@
+:root {
+  --bg: #ececed;
+  --ink: #16181d;
+  --mute: #7b7f88;
+  --line: #dcdde0;
+  --card: #fff;
+  --poster-w: 46px;
+  --poster-h: 69px;
+  --pick-w: 80px;
+  --pick-h: 120px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+#fatal {
+  position: fixed; inset: 0 0 auto 0; z-index: 99;
+  margin: 0; padding: 12px; background: #b0202a; color: #fff;
+  font: 12px/1.4 ui-monospace, Menlo, monospace; white-space: pre-wrap;
+}
+
+#stage { position: relative; height: 100%; }
+
+/* ---- the pile ---- */
+
+#pile { position: absolute; inset: 0; touch-action: none; }
+
+.poster {
+  position: absolute; top: 0; left: 0;
+  width: var(--poster-w); height: var(--poster-h);
+  border-radius: 6px;
+  background: #23252b no-repeat center / cover;
+  will-change: transform;
+  pointer-events: auto;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* The scale rides inside the transform, never as the scale property. The
+   scale property applies after transform, so it would multiply the translate
+   and throw the poster off its mark. These vars sit at the tail of the
+   transform string that pile.js writes. */
+@property --sx { syntax: '<number>'; initial-value: 1; inherits: false; }
+@property --sy { syntax: '<number>'; initial-value: 1; inherits: false; }
+
+/* The transform overshoots and settles. The box only grows, so it keeps a
+   plain ease. The spring is a linear() ramp because a cubic cannot pass 1.
+   The class is dropped on landing, so a picked poster has no transition. */
+.poster.flying {
+  transition: transform 620ms linear(
+                0, 0.006, 0.025 2.8%, 0.101 6.1%, 0.539 18.9%, 0.721 25.3%,
+                0.849 31.5%, 0.937 38.1%, 0.968 41.8%, 0.991 45.7%, 1.006 50.1%,
+                1.015 55%, 1.017 63.9%, 1.006 79%, 1),
+              width 620ms cubic-bezier(.2, .8, .25, 1),
+              height 620ms cubic-bezier(.2, .8, .25, 1),
+              box-shadow 620ms ease;
+}
+
+.poster.picked {
+  width: var(--pick-w); height: var(--pick-h);
+  border-radius: 5px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.22);
+  cursor: pointer;
+  z-index: 3;
+}
+
+/* Snaps. A landed poster has no transition left to run. */
+.poster.picked:hover { z-index: 6; --sx: 1.2; --sy: 1.2; }
+
+@media (prefers-reduced-motion: reduce) {
+  .poster.flying { transition-timing-function: cubic-bezier(.2, .8, .25, 1); }
+}
+
+/* ---- input and results ---- */
+
+#top {
+  position: absolute; top: 12vh; left: 50%; z-index: 5;
+  width: min(620px, 92vw); transform: translateX(-50%);
+  text-align: center; pointer-events: none;
+}
+
+#top > * { pointer-events: auto; }
+
+#form { position: relative; }
+
+#q {
+  width: 100%; padding: 1.5rem;
+  border: 1px solid var(--line); border-radius: 16px;
+  background: var(--card); color: var(--ink);
+  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  line-height: 1;
+  box-shadow: 0 6px 22px rgb(0 0 0 / 0.07);
+  outline: none;
+}
+
+#q:focus { border-color: #b9bcc4; }
+#q::placeholder { color: #93969d; opacity: 1 }
+
+
+/* A request is in flight. With a one second wait before one even starts, the
+   box has to show something. */
+#form::after {
+  content: '';
+  position: absolute; right: 26px; bottom: 12px; left: 26px; height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #b3b7bf, transparent);
+  background-repeat: no-repeat;
+  background-size: 38% 100%;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+#form.busy::after { opacity: 1; animation: sweep 1s linear infinite; }
+
+@keyframes sweep {
+  from { background-position: -40% 0; }
+  to { background-position: 140% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #form.busy::after { background-position: 50% 0; animation: none; }
+}
+
+#clear {
+  position: absolute; top: 50%; right: 16px; translate: 0 -50%;
+  width: 30px; height: 30px; padding: 0;
+  border: 0; border-radius: 50%; background: none;
+  color: var(--mute); font-size: 24px; line-height: 1; cursor: pointer;
+}
+
+#clear:hover { background: #f0f0f2; }
+
+#results {
+  position: relative;
+  display: flex; gap: 14px; justify-content: center;
+  min-height: var(--pick-h);
+  margin-top: 40px;
+  pointer-events: none;   /* the posters underneath own the pointer */
+}
+
+.slot { position: relative; width: var(--pick-w); }
+.slot .box { width: var(--pick-w); height: var(--pick-h); }
+
+/* ---- tooltip ---- */
+
+.tip {
+  position: absolute;
+  left: 50%; top: calc(var(--pick-h) + 14px);
+  translate: -50% 0;
+  z-index: 8;
+  width: max-content; max-width: 230px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: #1c1e24; color: #f2f3f5;
+  font-size: 12px; line-height: 1.4; text-align: left;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.26);
+  opacity: 0; scale: 0.96;
+  transition: opacity 140ms ease, scale 140ms ease;
+  pointer-events: none;
+}
+
+/* Anchored to the poster itself, so the tooltip tracks it wherever it lands. */
+@supports (top: anchor(bottom)) {
+  .tip {
+    top: anchor(bottom); left: anchor(center);
+    translate: -50% 14px;
+  }
+}
+
+.slot.tip-on .tip { opacity: 1; scale: 1; }
+
+.tip b { display: block; margin-bottom: 2px; font-size: 13px; font-weight: 600; }
+.tip .facts { display: block; color: #a9adb6; }
+.tip .svc { display: block; margin-top: 5px; color: #7ad39d; }
+.tip .svc.off { color: #8b8f98; }
+.tip .match { display: block; margin-top: 5px; color: #a9adb6; }
+.tip .match b { display: inline; color: #f2f3f5; font-size: 12px; }
+
+/* Errors only. The counts and the bill go to the browser console. */
+#status { margin: 14px 0 0; font-size: 12.5px; color: #b0202a; }
+#status:empty { display: none; }
+
+/* ---- panel ---- */
+
+#toggle {
+  position: absolute; top: 16px; right: 16px; z-index: 4;
+  width: 30px; height: 30px; padding: 0;
+  border: 1px solid var(--line); border-radius: 50%;
+  background: var(--card); color: var(--mute); font-size: 14px; cursor: pointer;
+}
+
+#panel {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 10;
+  width: min(360px, 94vw); overflow-y: auto;
+  padding: 0 20px 28px;
+  background: var(--card); border-left: 1px solid var(--line);
+  font-size: 13px;
+}
+
+#panel header {
+  position: sticky; top: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 0 10px; background: var(--card); border-bottom: 1px solid var(--line);
+}
+
+#panel h2 { margin: 0; font-size: 14px; }
+#panel h3 { margin: 20px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--mute); }
+#panel h3 em { font-style: normal; color: #b4b7bd; text-transform: none; letter-spacing: 0; }
+#close { border: 0; background: none; font-size: 20px; color: var(--mute); cursor: pointer; }
+
+.note { margin: 4px 0 0; color: var(--mute); font-size: 12px; }
+
+.row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+.row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row b { width: 42px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.bar { flex: 0 0 76px; height: 5px; border-radius: 3px; background: #ebebed; overflow: hidden; }
+.bar i { display: block; height: 100%; background: #4a5568; }
+.bar.hot i { background: #2f7d4f; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.chip { padding: 3px 9px; border-radius: 999px; background: #eef0f3; font-size: 11.5px; }
+.chip.warn { background: #fdf0d8; }
+
+.bill { margin-top: 6px; color: var(--mute); font-size: 12px; }
+.bill b { color: var(--ink); font-weight: 600; }
